@@ -1,6 +1,6 @@
 /* =========================================================
  * bootstrap-timepicker.js
- * http://www.github.com/jdewit/bootstrap-timepicker
+ * http://www.github.com/binarypie/bootstrap-timepicker
  * =========================================================
  * Copyright 2012
  *
@@ -8,6 +8,7 @@
  * Joris de Wit @joris_dewit
  *
  * Contributions By:
+ * Charles Christolini @binarypie
  * Gilbert @mindeavor
  * Koen Punt info@koenpunt.nl
  * Nek
@@ -40,6 +41,7 @@
         this.secondStep = this.options.secondStep || this.secondStep;
         this.showMeridian = this.options.showMeridian || this.showMeridian;
         this.showSeconds = this.options.showSeconds || this.showSeconds;
+        this.showTimezone = this.options.showTimezone || this.showTimezone;
         this.showInputs = this.options.showInputs || this.showInputs;
         this.disableFocus = this.options.disableFocus || this.disableFocus;
         this.template = this.options.template || this.template;
@@ -79,10 +81,9 @@
                     });
                 }
             }
-            
 
             this.$widget = $(this.getTemplate()).appendTo('body');
-            
+
             this.$widget.on('click', $.proxy(this.widgetClick, this));
 
             if (this.showInputs) {
@@ -139,7 +140,7 @@
 
         , hideWidget: function(){
             this.$element.trigger('hide');
-            
+
             if (this.template === 'modal') {
                 this.$widget.modal('hide');
             } else {
@@ -293,7 +294,7 @@
                     this.updateElement();
                 break;
             }
-            
+
             if (e.keyCode !== 0 && e.keyCode !== 8 && e.keyCode !== 9 && e.keyCode !== 46) {
                 e.preventDefault();
             }
@@ -304,6 +305,11 @@
                 var arr = time.split(' ');
                 var timeArray = arr[0].split(':');
                 this.meridian = arr[1];
+                this.timezone = arr[2];
+            } else if (this.showTimezone) {
+                var arr = time.split(' ');
+                var timeArray = arr[0].split(':');
+                this.timezone = arr[1];
             } else {
                 var timeArray = time.split(':');
             }
@@ -376,6 +382,7 @@
         }
 
         , setDefaultTime: function(defaultTime){
+            this.timezone = 'GMT+0';
             if (defaultTime) {
                 if (defaultTime === 'current') {
                     var dTime = new Date();
@@ -412,16 +419,16 @@
             }
         }
 
-        , formatTime: function(hour, minute, second, meridian) {
+        , formatTime: function(hour, minute, second, meridian, timezone) {
             hour = hour < 10 ? '0' + hour : hour;
             minute = minute < 10 ? '0' + minute : minute;
             second = second < 10 ? '0' + second : second;
 
-            return hour + ':' + minute + (this.showSeconds ? ':' + second : '') + (this.showMeridian ? ' ' + meridian : '');
+            return hour + ':' + minute + (this.showSeconds ? ':' + second : '') + (this.showMeridian ? ' ' + meridian : '') + (this.showTimezone ? ' ' + timezone : '');
         }
 
         , getTime: function() {
-            return this.formatTime(this.hour, this.minute, this.second, this.meridian);
+            return this.formatTime(this.hour, this.minute, this.second, this.meridian, this.timezone);
         }
 
         , setTime: function(time) {
@@ -457,6 +464,9 @@
                 case 'meridian':
                     this.highlightMeridian();
                 break;
+                case 'timezone':
+                    this.highlightTimezone();
+                break;
             }
         }
 
@@ -470,6 +480,9 @@
                 if (this.showMeridian) {
                     this.$widget.find('input.bootstrap-timepicker-meridian').val(this.meridian);
                 }
+                if (this.showTimezone) {
+                    this.$widget.find('input.bootstrap-timepcker-timezone').val(this.timezone);
+                }
             } else {
                 this.$widget.find('span.bootstrap-timepicker-hour').text(this.hour);
                 this.$widget.find('span.bootstrap-timepicker-minute').text(this.minute < 10 ? '0' + this.minute : this.minute);
@@ -478,6 +491,9 @@
                 }
                 if (this.showMeridian) {
                     this.$widget.find('span.bootstrap-timepicker-meridian').text(this.meridian);
+                }
+                if (this.showTimezone) {
+                    this.$widget.find('span.bootstrap-timepicker-timezone').html(this.timezone);
                 }
             }
         }
@@ -522,8 +538,8 @@
 
         , highlightUnit: function () {
             var input = this.$element.get(0);
-
             this.position = this.getCursorPosition();
+
             if (this.position >= 0 && this.position <= 2) {
                 this.highlightHour();
             } else if (this.position >= 3 && this.position <= 5) {
@@ -534,8 +550,12 @@
                 } else {
                     this.highlightMeridian();
                 }
-            } else if (this.position >= 9 && this.position <= 11) {
-                this.highlightMeridian();
+            } else if (this.position >= 9) {
+                if (this.showMeridian && this.position < 11) {
+                    this.highlightMeridian();
+                } else {
+                    this.highlightTimezone();
+                }
             }
         }
 
@@ -555,8 +575,16 @@
                     this.highlightMeridian();
                 break;
                 case 'meridian':
+                    if (this.showTimezone) {
+                        this.highlightTimezone();
+                    } else {
+                        this.highlightHour();
+                    }
+                break;
+                case 'meridian':
                     this.highlightHour();
                 break;
+
             }
         }
 
@@ -573,6 +601,15 @@
                 break;
                 case 'meridian':
                     if (this.showSeconds) {
+                        this.highlightSecond();
+                    } else {
+                        this.highlightMinute();
+                    }
+                break;
+                case 'timezone':
+                    if (this.showMeridian) {
+                        this.highlightMeridian();
+                    } else if (this.showSeconds) {
                         this.highlightSecond();
                     } else {
                         this.highlightMinute();
@@ -603,6 +640,25 @@
             } else {
                 this.$element.get(0).setSelectionRange(6,8); 
             }
+        }
+
+        , highlightTimezone: function() {
+            this.highlightedUnit = 'timezone';
+
+            var x1 = 6;
+            var x2 = 11;
+
+            if (this.showSeconds) {
+                x1 += 3;
+                x2 += 3;
+            }
+
+            if (this.showMeridian) {
+                x1 += 3;
+                x2 += 3;
+            }
+
+            this.$element.get(0).setSelectionRange(x1,x2);
         }
 
         , incrementHour: function() {
@@ -676,8 +732,27 @@
 
         , toggleMeridian: function() {
             this.meridian = this.meridian === 'AM' ? 'PM' : 'AM';
-
             this.update();
+        }
+
+        , incrementTimezone: function() {
+            var timeInt = parseInt(this.timezone.replace(/[^0-9\-]/g, ''));
+            timeInt += 1;
+            if (timeInt > 14) {
+                timeInt = -12;
+            }
+            var prefix = (timeInt > -1) ? '+' : '';
+            this.timezone = 'GMT'+prefix+timeInt;
+        }
+
+        , decrementTimezone: function() {
+            var timeInt = parseInt(this.timezone.replace(/[^0-9\-]/g, ''));
+            timeInt -= 1;
+            if (timeInt < -12) {
+                timeInt = 14;
+            }
+            var prefix = (timeInt > -1) ? '+' : '';
+            this.timezone = 'GMT'+prefix+timeInt;
         }
 
         , getTemplate: function() {
@@ -689,11 +764,13 @@
                 var minuteTemplate = '<input type="text" name="minute" class="bootstrap-timepicker-minute" maxlength="2"/>';
                 var secondTemplate = '<input type="text" name="second" class="bootstrap-timepicker-second" maxlength="2"/>';
                 var meridianTemplate = '<input type="text" name="meridian" class="bootstrap-timepicker-meridian" maxlength="2"/>';
+                var timezoneTemplate = '<input type="text" name="timezone" class="bootstrap-timepicker-timezone" maxlength="3"/>';
             } else {
                 var hourTemplate = '<span class="bootstrap-timepicker-hour"></span>';
                 var minuteTemplate = '<span class="bootstrap-timepicker-minute"></span>';
                 var secondTemplate = '<span class="bootstrap-timepicker-second"></span>';
                 var meridianTemplate = '<span class="bootstrap-timepicker-meridian"></span>';
+                var timezoneTemplate = '<span class="bootstrap-timepicker-timezone"></span>';
             }
             var templateContent = '<table class="'+ (this.showSeconds ? 'show-seconds' : '') +' '+ (this.showMeridian ? 'show-meridian' : '') +'">'+
                                        '<tr>'+
@@ -708,6 +785,10 @@
                                                '<td class="separator">&nbsp;</td>'+
                                                '<td class="meridian-column"><a href="#" data-action="toggleMeridian"><i class="icon-chevron-up"></i></a></td>'
                                            : '') +
+                                           (this.showTimezone ? 
+                                               '<td class="separator">&nbsp;</td>'+
+                                               '<td class="timezone-column"><a href="#" data-action="incrementTimezone"><i class="icon-chevron-up"></i></a></td>'
+                                           : '') +
                                        '</tr>'+
                                        '<tr>'+
                                            '<td>'+ hourTemplate +'</td> '+
@@ -721,6 +802,10 @@
                                                 '<td class="separator">&nbsp;</td>'+
                                                 '<td>'+ meridianTemplate +'</td>'
                                            : '') +
+                                           (this.showTimezone ? 
+                                                '<td class="separator">&nbsp;</td>'+
+                                                '<td>'+ timezoneTemplate +'</td>'
+                                           : '') +
                                        '</tr>'+
                                        '<tr>'+
                                            '<td><a href="#" data-action="decrementHour"><i class="icon-chevron-down"></i></a></td>'+
@@ -733,6 +818,10 @@
                                            (this.showMeridian ? 
                                                 '<td class="separator">&nbsp;</td>'+
                                                 '<td><a href="#" data-action="toggleMeridian"><i class="icon-chevron-down"></i></a></td>'
+                                           : '') +
+                                          (this.showTimezone ? 
+                                                '<td class="separator">&nbsp;</td>'+
+                                                '<td><a href="#" data-action="decrementTimezone"><i class="icon-chevron-down"></i></a></td>'
                                            : '') +
                                        '</tr>'+
                                    '</table>';
@@ -752,14 +841,12 @@
                                        '<a href="#" class="btn btn-primary" data-dismiss="modal">Ok</a>'+
                                    '</div>'+
                                '</div>';
-                    
                 break;
                 case 'dropdown':
                     template = '<div class="bootstrap-timepicker dropdown-menu">'+
                                     templateContent +
                                '</div>';
                 break;
-                
             }
             return template;
         }
@@ -789,6 +876,7 @@
     , disableFocus: false
     , defaultTime: 'current'
     , showSeconds: false
+    , showTimezone: true
     , showInputs: true
     , showMeridian: true
     , template: 'dropdown'
